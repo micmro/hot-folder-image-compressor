@@ -1,5 +1,23 @@
+<<<<<<< HEAD
 node_modules
 .tmp
 hot-folder-image-compressor.sublime-workspace
 hot-folder-image-compressor.sublime-project
 images
+=======
+lib-cov
+*.seed
+*.log
+*.csv
+*.dat
+*.out
+*.pid
+*.gz
+
+pids
+logs
+results
+
+npm-debug.log
+node_modules
+>>>>>>> 2e55cfce13b61afefca44367c1cc1bcb0135e944
