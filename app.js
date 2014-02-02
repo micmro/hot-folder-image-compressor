@@ -1,17 +1,22 @@
 "use strict";
 
-//setup Dependencies
+//Dependencies
 var path = require("path")
 	,fs = require("fs")
 	,watch = require('node-watch')
-	,imagemin = require('imagemin')
+	,imagemin = require('image-min')
 	,colors = require('colors');
 
-//TODO: test if need to fist install below on *nix platforms
-// install apt-get install libjpeg libjpeg-progs 
-var watchPath = path.resolve(__dirname, "../images/Source")
-	,resultPath = path.resolve(__dirname,"../images/Result");
-
+//Options and settings that are / migth later be arguments
+var options = {
+	watchPath : path.resolve(__dirname, process.argv[2]||"../images/Source")
+	,resultPath : path.resolve(__dirname, process.argv[3]||"../images/Result")
+	,imageminOptions : {
+		cache: true,
+		optimizationLevel: 7,
+		progressive: true
+	}
+};
 
 //start with tacky logo
 console.log("\n\n    )              (                              (                                                                                       ".red);
@@ -23,32 +28,38 @@ console.log("| || | ((_)| |_   | |_  ((_)| |  _| |(_))   ((_) |_ _| _((_)) ((_)_
 console.log("| __ |/ _ \\|  _|  | __|/ _ \\| |/ _` |/ -_) | '_|  | | | '  \\()/ _` |/ _` | / -_)   | (__ / _ \\| '  \\()| '_ \\)| '_|/ -_)(_-<(_-</ _ \\| '_| ".red);
 console.log("|_||_|\\___/ \\__|  |_|  \\___/|_|\\__,_|\\___| |_|   |___||_|_|_| \\__,_|\\__, | \\___|    \\___|\\___/|_|_|_| | .__/ |_|  \\___|/__//__/\\___/|_|   ".red);
 console.log("                                                                    |___/                             |_|                                  \n\n\n".red);
-console.log("compressing images in ", watchPath.bold);
+console.log("compressing images in ", options.watchPath.bold);
 
 
 //compress changed image
 var compressImage = function(filename){
-	var saveTarget = path.join(resultPath, path.relative(watchPath, filename));
+	var saveTarget = path.join(options.resultPath, path.relative(options.watchPath, filename));
 	fs.mkdir(path.dirname(saveTarget), function(){
-		imagemin(filename, saveTarget, function(){
-			console.log("&&&&&&&&done".green);
+		imagemin(filename, saveTarget, options.imageminOptions, function (err, data){
+			if (err) {
+				console.log(err.red);
+			}
 		});
 	});
 };
 
-var initChangeWatch = function(){
+
+var initChangeWatch = function (err, data){
+	if (err) {
+		console.log(err.red);
+	}
  	console.log("\n\n===========================".green);
- 	console.log("Existing Files in ", watchPath.bold," Compressed\n\n".green);
-	console.log("watching ", watchPath.bold, " for changes");
-	console.log("press ctrl+c to exit ...");
+ 	console.log("Existing Files in ", options.watchPath.bold," Compressed\n\n".green);
+	console.log("watching ", options.watchPath.bold, " for changes");
+	console.log("press ctrl+c to stop and exit ...");
 	
-	watch(watchPath, { recursive: true, followSymLinks: true }, filter(/^.(jpg|jpeg|gif|png)$/, compressImage));
+	watch(options.watchPath, { recursive: true, followSymLinks: true }, filterImages(compressImage));
 };
 
 
-var filter = function(pattern, fn) {
+var filterImages = function(fn) {
 	return function(filename) {
-		if (pattern.test(path.extname(filename).toLowerCase())) {
+		if (/^.(jpg|jpeg|gif|png)$/.test(path.extname(filename).toLowerCase())) {
 			fn(filename);
 		}
 	};
@@ -88,13 +99,13 @@ var walk = function(dir, onFolderFound, done){
 };
 
 //walk file system to repicate the folder structure and init optimization and watcher when done
-walk(watchPath, function(dir){
-	var saveTarget = path.join(resultPath, path.relative(watchPath, dir));
-	fs.mkdir(saveTarget, function(err){
-		if(!err){
-			console.log("Dirctory Created".green, saveTarget);
-		}
-	});
-}, function(){
-	imagemin(watchPath, resultPath, initChangeWatch);
+walk(options.watchPath, function(dir){
+		var saveTarget = path.join(options.resultPath, path.relative(options.watchPath, dir));
+		fs.mkdir(saveTarget, function(err){
+			if(!err){
+				console.log("Dirctory Created".green, saveTarget);
+			}
+		});
+	}, function(){
+		imagemin(options.watchPath, options.resultPath, options.imageminOptions, initChangeWatch);
 });
