@@ -3,7 +3,9 @@
 //Dependencies
 var path = require("path")
 	,fs = require("fs")
-	,watch = require('node-watch')
+	,os = require('os')
+	,async = require('async')
+	,watch = require('node-watch')	
 	,imagemin = require('image-min')
 	,colors = require('colors');
 
@@ -48,8 +50,7 @@ var initChangeWatch = function (err, data){
 	if (err) {
 		console.log(err.red);
 	}
- 	console.log("\n\n===========================".green);
- 	console.log("Existing Files in ", options.watchPath.bold," Compressed\n\n".green);
+	console.log("===========================".green);	
 	console.log("watching ", options.watchPath.bold, " for changes");
 	console.log("press ctrl+c to stop and exit ...");
 	
@@ -65,8 +66,34 @@ var filterImages = function(fn) {
 	};
 };
 
+/*
+var walk = function(dir, done) {
+  var results = [];
+  fs.readdir(dir, function(err, list) {
+	if (err) return done(err);
+	var pending = list.length;
+	if (!pending) return done(null, results);
+	list.forEach(function(file) {
+	  file = dir + '/' + file;
+	  fs.stat(file, function(err, stat) {
+		if (stat && stat.isDirectory()) {
+		  walk(file, function(err, res) {
+			results = results.concat(res);
+			if (!--pending) done(null, results);
+		  });
+		} else {
+		  results.push(file);
+		  if (!--pending) done(null, results);
+		}
+	  });
+	});
+  });
+};
+*/
+
 //file system walker
 var walk = function(dir, onFolderFound, done){
+	var images = [];
 	fs.readdir(dir, function(err, list){
 		if(err){
 			return done(err);
@@ -74,7 +101,7 @@ var walk = function(dir, onFolderFound, done){
 		var pending = list.length;
 
 		if(!pending){
-			return done(null);
+			return done(null, images);
 		}
 
 		onFolderFound(dir);
@@ -84,13 +111,18 @@ var walk = function(dir, onFolderFound, done){
 			fs.stat(file, function(err, stat) {
 				if (stat && stat.isDirectory()) {
 					walk(file, onFolderFound, function(err, res) {
+						images = images.concat(res);
 						if(!--pending){
-							done(null);
+							done(null, images);
 						}
 					});
 				} else {
+					filterImages(function(){
+						images.push(file);
+					})(file);
+					
 					if(!--pending){
-						done(null);
+						done(null, images);
 					}
 				}
 			});
@@ -106,6 +138,30 @@ walk(options.watchPath, function(dir){
 				console.log("Dirctory Created".green, saveTarget);
 			}
 		});
-	}, function(){
-		imagemin(options.watchPath, options.resultPath, options.imageminOptions, initChangeWatch);
+	}, function(err, images){
+		var totalSaved = 0;
+		async.forEachLimit(images, os.cpus().length, function (file, next) {
+
+			var saveTarget = path.join(options.resultPath, path.relative(options.watchPath, file));
+
+			imagemin(file, saveTarget, options, function (err, data) {
+				if (err) {
+					console.log(err.red);
+				}
+				totalSaved += data.diffSizeRaw;
+				if (data.diffSizeRaw > 10) {
+					console.log("saved " + data.diffSize.toString().bold, " for ", path.relative(options.watchPath, file));
+				}
+				process.nextTick(next);
+			});
+		}, function (err) {
+			if (err) {
+				console.log(err.red);
+			}
+			console.log(images.length.toString().bold.green, " existing Files in ", options.watchPath.bold," Compressed".green);
+			console.log((totalSaved / 1024 / 1024).toFixed(2).toString().bold.green, " MB saved");
+
+			initChangeWatch();
+		});
+		
 });
