@@ -38,9 +38,7 @@ var compressImage = function(filename){
 	var saveTarget = path.join(options.resultPath, path.relative(options.watchPath, filename));
 	fs.mkdir(path.dirname(saveTarget), function(){
 		imagemin(filename, saveTarget, options.imageminOptions, function (err, data){
-			if (err) {
-				console.log(err.red);
-			}
+			formatFileCompressionLog(err, data, filename);
 		});
 	});
 };
@@ -51,7 +49,7 @@ var initChangeWatch = function (err, data){
 		console.log(err.red);
 	}
 	console.log("===========================".green);	
-	console.log("watching ", options.watchPath.bold, " for changes");
+	console.log("watching", options.watchPath.bold, "for changes");
 	console.log("press ctrl+c to stop and exit ...");
 	
 	watch(options.watchPath, { recursive: true, followSymLinks: true }, filterImages(compressImage));
@@ -66,30 +64,6 @@ var filterImages = function(fn) {
 	};
 };
 
-/*
-var walk = function(dir, done) {
-  var results = [];
-  fs.readdir(dir, function(err, list) {
-	if (err) return done(err);
-	var pending = list.length;
-	if (!pending) return done(null, results);
-	list.forEach(function(file) {
-	  file = dir + '/' + file;
-	  fs.stat(file, function(err, stat) {
-		if (stat && stat.isDirectory()) {
-		  walk(file, function(err, res) {
-			results = results.concat(res);
-			if (!--pending) done(null, results);
-		  });
-		} else {
-		  results.push(file);
-		  if (!--pending) done(null, results);
-		}
-	  });
-	});
-  });
-};
-*/
 
 //file system walker
 var walk = function(dir, onFolderFound, done){
@@ -130,6 +104,18 @@ var walk = function(dir, onFolderFound, done){
 	});
 };
 
+var formatFileCompressionLog = function(err, data, file){
+	var tabSpacer = "\t";
+	if (err) {
+		console.log(err.red);
+	}else if (data.diffSizeRaw > 10) {
+		if(data.diffSize.toString().length < 9) {
+			tabSpacer += "\t";
+		}
+		console.log("saved " + data.diffSize.toString().bold, tabSpacer + "for \"" + path.relative(options.watchPath, file) + "\"");
+	}
+};
+
 //walk file system to repicate the folder structure and init optimization and watcher when done
 walk(options.watchPath, function(dir){
 		var saveTarget = path.join(options.resultPath, path.relative(options.watchPath, dir));
@@ -145,21 +131,16 @@ walk(options.watchPath, function(dir){
 			var saveTarget = path.join(options.resultPath, path.relative(options.watchPath, file));
 
 			imagemin(file, saveTarget, options, function (err, data) {
-				if (err) {
-					console.log(err.red);
-				}
+				formatFileCompressionLog(err, data, file);
 				totalSaved += data.diffSizeRaw;
-				if (data.diffSizeRaw > 10) {
-					console.log("saved " + data.diffSize.toString().bold, " for ", path.relative(options.watchPath, file));
-				}
 				process.nextTick(next);
 			});
 		}, function (err) {
 			if (err) {
 				console.log(err.red);
 			}
-			console.log(images.length.toString().bold.green, " existing Files in ", options.watchPath.bold," Compressed".green);
-			console.log((totalSaved / 1024 / 1024).toFixed(2).toString().bold.green, " MB saved");
+			console.log(images.length.toString().bold.green, "existing Files in", options.watchPath.bold,"Compressed".green);
+			console.log((totalSaved / 1024 / 1024).toFixed(2).toString().bold.green, "MB saved");
 
 			initChangeWatch();
 		});
