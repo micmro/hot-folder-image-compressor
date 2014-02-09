@@ -3,6 +3,19 @@
   "version": "0.0.1",
   "description": "listens to a folder and optimizes all images added to it",
   "license": "MIT",
+  "author": {
+    "name": "Michael Mrowetz",
+    "email": "me@michaelmrowetz.com"
+  },
+  "keywords": [
+  	"hot-reload",
+  	"hot-folder",
+    "compress",
+    "image",
+    "jpeg",
+    "jpg",
+    "png"
+  ],
   "repository": {
     "type": "git",
     "url": "git://github.com/micmro/hot-folder-image-compressor.git"
